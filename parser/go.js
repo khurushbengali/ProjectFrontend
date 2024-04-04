@@ -2,8 +2,15 @@ const goParser = require('./goparser');
 const { push, peek } = require('./helper');
 
 const goCode = `
-func main() {
-  var x int = 100
+func main(a int, b int, c int) int {
+  var x int = 1
+  var y int = 2
+}
+
+func add(a int, b int) int {
+  var x int
+  x = a + b
+  return x
 }
 `;
 
@@ -39,12 +46,11 @@ const execute = (program) => {
   C = [parse(program)]
   S = []
   E = global_env
-  console.log("C", C)
+  console.log(JSON.stringify(C))
 }
 
 try {
   execute(goCode);
-  console.log(JSON.stringify(ast, null, 2));
 } catch (error) {
   console.error("Error parsing Go code:", error.message);
 }

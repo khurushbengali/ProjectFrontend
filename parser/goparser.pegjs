@@ -1,14 +1,26 @@
 start
-  = _ program:program _ { return program; }
+  = _ programs:program* _ { return programs; }
 
 program
   = functionDeclaration
 
 expression
-  = literal / unop / undefined
+  = head:operand tail:(_ binary_operator _ operand)* {
+      return tail.reduce((result, element) => {
+        return {
+          tag: "binop",
+          sym: element[1],
+          frst: result,
+          scnd: element[3]
+        };
+      }, head);
+    }
+
+operand
+  = unop / literal / identifier / "(" _ expression _ ")"
 
 statement
-  = variableDeclaration
+  = variableDeclaration / conditional / assignment / return
 
 literal
   = val:literal_values {
@@ -22,32 +34,19 @@ literal_values
   = number / true / false
 
 unop
-  = sym:unary_operator _ frst:literal_values {
-      if (sym === '!') {
-        if (frst === true || frst === false) {
-          return {
-            tag: "unop",
-            sym: sym,
-            frst: frst
-          }
-        } else {
-          throw new Error('Illegal expression')
-        }
-      } else if (sym === '-') {
-        if (frst !== true && frst !== false) {
-          return {
-            tag: "unop",
-            sym: sym,
-            frst: frst
-          }
-        } else {
-          throw new Error('Illegal expression')
-        }
+  = _ sym:unary_operator _ frst:operand _ {
+      return {
+        tag: "unop",
+        sym: sym,
+        frst: frst
       }
     }
 
 unary_operator
-  = [!-]
+  = "-" / "!"
+
+binary_operator
+  = "+" / "-" / "*" / "/"
 
 number
   = digits:[0-9]+ decimal:("." [0-9]+)? {
@@ -73,38 +72,98 @@ undefined
     }
 
 functionDeclaration
-  = "func" _ sym:identifier _ "(" _ prms:identifier? _ ")" _ "{" _ body:statement? _ "}" {
+  = _ "func" _ sym:identifier _ "(" _ prms:nameTypePairs? _ ")" _ returnType:type? _ "{" _ body:functionBody? _ "}" _ {
       return {
         tag: "fun",
         sym: sym,
-        prms: prms ? prms.split(",") : [],
-        body: body
+        prms: prms,
+        body: body,
+        returnType: returnType
       };
     }
 
 variableDeclaration
-  = "var" _ name:identifier _ typeName:identifier _ "="? _ val:literal? {
+  = _ "var" _ nameType:nameTypePair _ "="? _ val:literal? _ {
       return {
         tag: "var",
-        name: name,
-        dataType: typeName,
+        name: nameType.name,
+        type: nameType.type,
         val: val
       };
     }
 
+assignment
+  = _ sym:identifier _ "=" _ expr:expression _ {
+      return {
+        tag: "assmt",
+        sym: sym,
+        expr: expr
+      }
+    }
+
+conditional
+  = _ "if" _ pred:expression _ "{" _ cons:statement? _ "}" _ "else"? _ "{"? _ alt:statement? _ "}"? _ {
+      return {
+        tag: "cond",
+        pred: pred,
+        cons: cons,
+        alt: alt
+      }
+    }
+
 return
-  = "return" _ expr:expression _ {
+  = _ "return" _ expr:expression? _ {
     return {
       tag: "ret",
       expr: expr
     };
   }
 
-identifier
-  = chars:identifier_char { return [chars[0], chars[1].join("")].join(""); }
+functionBody
+  = statements:statement* {
+      return statements;
+    }
 
-identifier_char
-  = [a-zA-Z_][a-zA-Z_0-9]*
+nameTypePairs
+  = first:nameTypePair rest:(_ "," _ nameTypePair)* {
+      return [first].concat(rest.map(e => e[3]));
+    }
+
+nameTypePair
+  = name:identifier _ type:type {
+      return {
+        name: name,
+        type: type
+      }
+    }
+
+identifiers
+  = first:identifier rest:(_ "," _ identifier)* {
+      return [first].concat(rest.map(e => e[3]));
+    }
+
+identifier
+  = [a-zA-Z_][a-zA-Z_0-9]* {
+      return text();
+    }
+
+type
+  = int / bool / string
+
+string
+  = "string" {
+      return text()
+    }
+
+bool
+  = "bool" {
+      return text();
+    }
+
+int
+  = "int" {
+      return text();
+    }
 
 // Whitespace management
 _ "whitespace"
