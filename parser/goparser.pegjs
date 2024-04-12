@@ -28,7 +28,7 @@ operand
   = unop / literal / nam / "(" _ expression _ ")"
 
 statement
-  = variableDeclaration / conditional / assignment / return / functionApplication
+  = variableDeclaration / conditional / assignment / return / functionApplication / goroutine
 
 nam
   = sym:identifier {
@@ -99,12 +99,17 @@ functionDeclaration
     }
 
 functionApplication
-  = _ fun:identifier "(" _ args:expression* _ ")" _ {
+  = _ fun:identifier "(" _ args:args _ ")" _ {
       return {
         tag: "app",
         fun: {tag: "nam", sym: fun},
-        args: args
+        args: args.reverse()
       }
+    }
+
+args
+  = first:expression rest:(_ "," _ expression)* {
+      return [first].concat(rest.map(e => e[3]));
     }
 
 variableDeclaration
@@ -135,6 +140,14 @@ conditional
         alt: alt
       }
     }
+
+goroutine
+  = _ "go" _ func:functionApplication _ {
+    return {
+      tag: "goroutine",
+      func: func
+    }
+  }
 
 return
   = _ "return" _ expr:expression? _ {
