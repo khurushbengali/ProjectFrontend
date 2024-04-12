@@ -146,4 +146,6 @@ const command_to_string = cmd =>
 
 const arity = x => typeof x === 'function' ? x.length : error(x, 'arity expects function, received:')
 
+const is_number = x => typeof x === 'number'
+
 module.exports = { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure, is_builtin, value_to_string, apply_binop, apply_unop, apply_builtin, builtin_mapping, display, error, extend, assign, unassigned, is_unassigned, command_to_string, arity }

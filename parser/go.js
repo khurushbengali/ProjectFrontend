@@ -1,11 +1,11 @@
 const goParser = require('./goparser');
-const { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure, is_builtin, value_to_string, apply_binop, apply_unop, apply_builtin, builtin_mapping, display, error, extend, assign, unassigned, is_unassigned, command_to_string, arity } = require('./helper');
+const { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure, is_builtin, value_to_string, apply_binop, apply_unop, apply_builtin, builtin_mapping, display, error, extend, assign, unassigned, is_unassigned, command_to_string, arity, is_number } = require('./helper');
 
 const goCode = `
-func get(a int) int {
-  print(a)
+func get(a int, b int) int {
+  print(a * b + 2)
 }
-get(1)
+get(2, 4)
 `;
 
 let C
@@ -221,7 +221,7 @@ const execute = (program) => {
   C = [parse(program)]
   S = []
   E = global_env
-  // console.log(JSON.stringify(C))
+  console.log(JSON.stringify(C))
   let i = 0
   while (i < step_limit) {
     if (C.length === 0) break
