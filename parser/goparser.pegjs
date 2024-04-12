@@ -1,8 +1,16 @@
 start
-  = _ programs:program* _ { return programs; }
+  = _ programs:program _ { return programs; }
 
 program
-  = functionDeclaration
+  = _ declarations:test* _ {
+      return {
+        tag: "seq",
+        stmts: declarations
+      };
+    }
+
+test
+  = functionDeclaration / functionApplication
 
 expression
   = head:operand tail:(_ binary_operator _ operand)* {
@@ -17,10 +25,18 @@ expression
     }
 
 operand
-  = unop / literal / identifier / "(" _ expression _ ")"
+  = unop / literal / nam / "(" _ expression _ ")"
 
 statement
-  = variableDeclaration / conditional / assignment / return
+  = variableDeclaration / conditional / assignment / return / functionApplication
+
+nam
+  = sym:identifier {
+      return {
+        tag: "nam",
+        sym: sym
+      }
+    }
 
 literal
   = val:literal_values {
@@ -82,6 +98,15 @@ functionDeclaration
       };
     }
 
+functionApplication
+  = _ fun:identifier "(" _ args:expression* _ ")" _ {
+      return {
+        tag: "app",
+        fun: {tag: "nam", sym: fun},
+        args: args
+      }
+    }
+
 variableDeclaration
   = _ "var" _ nameType:nameTypePair _ "="? _ val:literal? _ {
       return {
@@ -121,7 +146,10 @@ return
 
 functionBody
   = statements:statement* {
-      return statements;
+      return {
+        tag: "seq",
+        stmts: statements
+      };
     }
 
 nameTypePairs
