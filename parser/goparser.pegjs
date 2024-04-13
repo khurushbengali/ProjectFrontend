@@ -28,7 +28,7 @@ operand
   = unop / literal / nam / "(" _ expression _ ")"
 
 statement
-  = variableDeclaration / conditional / assignment / return / functionApplication / goroutine
+  = variableDeclaration / conditional / assignment / return / functionApplication / goroutine / forLoop 
 
 nam
   = sym:identifier {
@@ -62,7 +62,7 @@ unary_operator
   = "-" / "!"
 
 binary_operator
-  = "+" / "-" / "*" / "/"
+  = "+" / "-" / "*" / "/" / "%" / "<" / "<=" / ">" / ">=" / "===" / "!=="
 
 number
   = digits:[0-9]+ decimal:("." [0-9]+)? {
@@ -139,6 +139,27 @@ conditional
         cons: cons,
         alt: alt
       }
+    }
+
+forLoop
+  = _ "for" _ pred:expression? _ "{" _ body:forBody? _ "}" _
+    {
+      return {
+        tag: "for",
+        pred: pred,
+        body: body
+      };
+    }
+
+forInit
+  = variableDeclaration / assignment
+
+forBody
+  = statements:statement* {
+      return {
+        tag: "seq",
+        stmts: statements
+      };
     }
 
 goroutine

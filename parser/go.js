@@ -3,7 +3,10 @@ const { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure,
 
 const goCode = `
 func get(a int, b int) int {
-  print(a * b + 2)
+  for a < 4 {
+    print(a * b + 2)
+    a = a + 1
+  }
 }
 get(2, 4)
 `;
@@ -110,6 +113,11 @@ const microcode = {
       push(C, { tag: 'lit', val: undefined },
         { tag: 'while_i', pred: cmd.pred, body: cmd.body },
         cmd.pred),
+  for:
+    cmd =>
+      push(C, { tag: 'lit', val: undefined },
+          { tag: 'for_i', pred: cmd.pred, body: cmd.body },
+          cmd.pred),
   reset_i:
     cmd =>
       C.pop().tag === 'mark_i'    // mark found?  
@@ -151,6 +159,14 @@ const microcode = {
     cmd =>
       push(C, S.pop() ? cmd.cons : cmd.alt),
   while_i:
+    cmd =>
+      S.pop()
+        ? push(C, cmd,
+          cmd.pred,
+          { tag: 'pop_i' },
+          cmd.body)
+        : null,
+  for_i:
     cmd =>
       S.pop()
         ? push(C, cmd,
