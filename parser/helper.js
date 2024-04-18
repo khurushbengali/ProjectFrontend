@@ -100,6 +100,8 @@ const apply_unop = (op, v) => unop_microcode[op](v)
 
 const builtin_mapping = {
     print: x => console.log(x),
+    waitGroupAdd: n => n,
+    waitGroupWait: () => null,
 }
 
 const apply_builtin = (builtin_symbol, args) =>

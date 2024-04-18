@@ -99,11 +99,11 @@ functionDeclaration
     }
 
 functionApplication
-  = _ fun:identifier "(" _ args:args _ ")" _ {
+  = _ fun:identifier "(" _ args:args? _ ")" _ {
       return {
         tag: "app",
         fun: {tag: "nam", sym: fun},
-        args: args.reverse()
+        args: args ? args.reverse() : []
       }
     }
 
@@ -113,12 +113,12 @@ args
     }
 
 variableDeclaration
-  = _ "var" _ nameType:nameTypePair _ "="? _ val:literal? _ {
+  = _ "var" _ nameType:nameTypePair _ "="? _ expr:expression? _ {
       return {
-        tag: "var",
-        name: nameType.name,
+        tag: "let",
+        sym: nameType.name,
         type: nameType.type,
-        val: val
+        expr: expr
       };
     }
 
@@ -163,11 +163,11 @@ forBody
     }
 
 goroutine 
-  = _ "go" _ fun:identifier "(" _ args:args _ ")" _ {
+  = _ "go" _ fun:identifier "(" _ args:args? _ ")" _ {
     return {
         tag: "goroutines",
         fun: {tag: "nam", sym: fun},
-        args: args.reverse()
+        args: args ? args.reverse() : []
     }
 }
 

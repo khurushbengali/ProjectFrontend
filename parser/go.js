@@ -1,8 +1,7 @@
 const goParser = require('./goparser');
 const { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure, is_builtin, value_to_string, apply_binop, apply_unop, apply_builtin, builtin_mapping, display, error, extend, assign, unassigned, is_unassigned, command_to_string, arity, is_number } = require('./helper');
 // Import the Worker API
-const { Worker, isMainThread, parentPort} = require('worker_threads');
-
+const { Worker } = require('worker_threads');
 
 const goCode = `
 func get1(a int) int {
@@ -18,7 +17,10 @@ func get2(a int) int {
   }
 }
 func gofunc(a int) int {
+  waitGroupAdd(2)
   go get1(a)
+  go get1(a)
+  waitGroupWait()
   get2(a)
 }
 gofunc(1)
@@ -27,6 +29,8 @@ gofunc(1)
 let C
 let S
 let E
+let WG
+let W
 
 const microcode = {
   lit:
@@ -156,17 +160,28 @@ const microcode = {
       for (let i = arity - 1; i >= 0; i--)
         args[i] = S.pop()
       const sf = S.pop()
-      if (sf.tag === 'builtin')
-        return push(S, apply_builtin(sf.sym, args))
-      if (C.length === 0 || peek(C).tag === 'env_i') {
-        push(C, { tag: 'mark_i' })
-      } else if (peek(C).tag === 'reset_i') {
-        C.pop()
+      if (sf.tag === 'builtin') {
+        if (sf.sym === 'waitGroupAdd') {
+          WG += args[0]
+          if (WG > 0) {
+            W = true
+          }
+        } else if (sf.sym === 'waitGroupWait') {
+          W = false
+        } else {
+          return push(S, apply_builtin(sf.sym, args))
+        }
       } else {
-        push(C, { tag: 'env_i', env: E }, { tag: 'mark_i' })
+        if (C.length === 0 || peek(C).tag === 'env_i') {
+          push(C, { tag: 'mark_i' })
+        } else if (peek(C).tag === 'reset_i') {
+          C.pop()
+        } else {
+          push(C, { tag: 'env_i', env: E }, { tag: 'mark_i' })
+        }
+        push(C, sf.body)
+        E = extend(sf.prms, args, sf.env)
       }
-      push(C, sf.body)
-      E = extend(sf.prms, args, sf.env)
     },
   branch_i:
     cmd =>
@@ -255,14 +270,7 @@ const microcode = {
       }
       push(C, sf.body)
       E = extend(sf.prms, args, sf.env)
-    },
-  // New microcode for wait group operations
-  wait_group_add_i:
-    () => waitGroupAdd(),
-  wait_group_done_i:
-    () => waitGroupDone(),
-  wait_group_wait_i:
-    async () => await waitGroupWait(),
+    }
 }
 
 const global_frame = {}
@@ -275,90 +283,60 @@ for (const key in builtin_mapping)
 const empty_env = null
 const global_env = pair(global_frame, empty_env)
 const parse = (program) => ({ tag: 'blk', body: goParser.parse(program) })
-const goroutineQueue = [];
-let currentGoroutineIndex = 0;
-
-
 
 const step_limit = 1000000
 const execute = async (program) => {
   C = [parse(program)]
   S = []
   E = global_env
+  WG = 0
+  W = false
   // console.log(JSON.stringify(C))
   let i = 0
-  const goroutinePromises = []; // Array to hold promises for goroutines
   // Iterate over the control stack
   while (C.length > 0) {
     const cmd = C.pop();
-    // console.log(JSON.stringify(cmd))
-    if (cmd.tag === 'goroutines') {
-      // console.log(JSON.stringify(cmd))
-
-      // If the command is a goroutine, execute it asynchronously
-      goroutinePromises.push(executeGoroutine(cmd));
-    } else {
-      // Otherwise, execute standard command
-      executeStandard(cmd);
-    }
+    await executeCommand(cmd)
+    i++
   }
 
-  // Wait for all goroutines to finish executing in parallel
-  await Promise.all(goroutinePromises);
-
-  if (i === step_limit) {
-    error("step limit " + stringify(step_limit) + " exceeded")
-  }
-  if (S.length > 1 || S.length < 1) {
-    error(S, 'internal error: stash must be singleton but is: ')
-  }
+  // if (i === step_limit) {
+  //   error("step limit " + stringify(step_limit) + " exceeded")
+  // }
+  // if (S.length > 1 || S.length < 1) {
+  //   error(S, 'internal error: stash must be singleton but is: ')
+  // }
   
-  return display(S[0])
+  // return display(S[0])
 }
 
-// const executeGoroutine = async (cmd) => {
-//   return new Promise((resolve, reject) => {
-//     if (microcode.hasOwnProperty(cmd.tag)) {
-//       microcode[cmd.tag](cmd);
-//     }
-//     resolve();
-//   });
-// };
-
-const executeGoroutine = async (cmd) => {
-  return new Promise((resolve, reject) => {
-      if (isMainThread) {
-          const worker1 = new Worker('./project/goroutine_worker.js');
-          // const worker2 = new Worker('./project/goroutine_worker.js');
-
-          worker1.on('message', resolve);
-          worker1.on('error', reject);
-          // worker2.on('message', resolve); // Resolve both workers, assuming they're independent
-          // worker2.on('error', reject);
-
-          worker1.postMessage(cmd); // Assuming cmd.fun contains the function name
-          // worker2.postMessage(cmd); // Assuming cmd.fun contains the function name
-      } else {
-          // Perform goroutine logic here
-          // console.log(JSON.stringify(cmd))
-          // if (microcode.hasOwnProperty(cmd.tag)) {
-          //   microcode[cmd.tag](cmd);
-          // }
-          // For simplicity, we'll just echo the message back
-          parentPort.postMessage(`Goroutine executed with command: ${cmd}`);
-      }
-  });
-};
-
-// module.exports = executeGoroutine;
-
-const executeStandard = (cmd) => {
-  // Implement the execution of other commands here
-  
-  if (microcode.hasOwnProperty(cmd.tag)) {
-    microcode[cmd.tag](cmd);
+const executeCommand = async (cmd) => {
+  if (cmd.tag !== 'goroutines') {
+    await executeConcurrency(cmd)
+  } else if (cmd.tag === 'goroutines' && WG > 0 && W) {
+    await executeConcurrency(cmd)
+    WG--
   } else {
-    error("", "unknown command: " + command_to_string(cmd));
+    executeConcurrency(cmd)
+  }
+}
+
+const executeConcurrency = (cmd) => {
+  if (cmd.tag === 'goroutines') {
+    return new Promise((resolve, reject) => {
+      const worker1 = new Worker('./parser/goroutine_worker.js', { workerData: { C: C, cmd: cmd } });
+      worker1.on('message', message => {
+        C = message
+        resolve()
+      });
+      worker1.on('error', reject);
+    })
+  } else {
+    if (microcode.hasOwnProperty(cmd.tag)) {
+      microcode[cmd.tag](cmd);
+    } else {
+      error("", "unknown command: " + command_to_string(cmd));
+    }
   }
 };
 
