@@ -162,13 +162,14 @@ forBody
       };
     }
 
-goroutine
-  = _ "go" _ func:functionApplication _ {
+goroutine 
+  = _ "go" _ fun:identifier "(" _ args:args _ ")" _ {
     return {
-      tag: "goroutine",
-      func: func
+        tag: "goroutines",
+        fun: {tag: "nam", sym: fun},
+        args: args.reverse()
     }
-  }
+}
 
 return
   = _ "return" _ expr:expression? _ {

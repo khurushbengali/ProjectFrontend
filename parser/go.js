@@ -1,14 +1,27 @@
 const goParser = require('./goparser');
 const { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure, is_builtin, value_to_string, apply_binop, apply_unop, apply_builtin, builtin_mapping, display, error, extend, assign, unassigned, is_unassigned, command_to_string, arity, is_number } = require('./helper');
+// Import the Worker API
+const { Worker, isMainThread, parentPort} = require('worker_threads');
+
 
 const goCode = `
-func get(a int, b int) int {
-  for a < 4 {
-    print(a * b + 2)
+func get1(a int) int {
+  for a < 10 {
+    print(a * a)
     a = a + 1
   }
 }
-get(2, 4)
+func get2(a int) int {
+  for a < 10 {
+    print(a + a)
+    a = a + 1
+  }
+}
+func gofunc(a int) int {
+  go get1(a)
+  get2(a)
+}
+gofunc(1)
 `;
 
 let C
@@ -218,7 +231,38 @@ const microcode = {
       } else {          // continue loop by pushing same
         push(C, cmd)  // throw_i instruction back on control
       }
-    }
+    },
+  goroutines:
+    cmd =>
+      push(C, { tag: 'goroutines_i', arity: cmd.args.length },
+        ...cmd.args, // already in reverse order, see ast_to_json
+        cmd.fun),
+  goroutines_i:
+    cmd => {
+      const arity = cmd.arity
+      let args = []
+      for (let i = arity - 1; i >= 0; i--)
+        args[i] = S.pop()
+      const sf = S.pop()
+      if (sf.tag === 'builtin')
+        return push(S, apply_builtin(sf.sym, args))
+      if (C.length === 0 || peek(C).tag === 'env_i') {
+        push(C, { tag: 'mark_i' })
+      } else if (peek(C).tag === 'reset_i') {
+        C.pop()
+      } else {
+        push(C, { tag: 'env_i', env: E }, { tag: 'mark_i' })
+      }
+      push(C, sf.body)
+      E = extend(sf.prms, args, sf.env)
+    },
+  // New microcode for wait group operations
+  wait_group_add_i:
+    () => waitGroupAdd(),
+  wait_group_done_i:
+    () => waitGroupDone(),
+  wait_group_wait_i:
+    async () => await waitGroupWait(),
 }
 
 const global_frame = {}
@@ -231,35 +275,92 @@ for (const key in builtin_mapping)
 const empty_env = null
 const global_env = pair(global_frame, empty_env)
 const parse = (program) => ({ tag: 'blk', body: goParser.parse(program) })
+const goroutineQueue = [];
+let currentGoroutineIndex = 0;
+
+
 
 const step_limit = 1000000
-const execute = (program) => {
+const execute = async (program) => {
   C = [parse(program)]
   S = []
   E = global_env
-  console.log(JSON.stringify(C))
+  // console.log(JSON.stringify(C))
   let i = 0
-  while (i < step_limit) {
-    if (C.length === 0) break
-    const cmd = C.pop()
-    console.log(JSON.stringify(cmd))
-    if (microcode.hasOwnProperty(cmd.tag)) {
-      microcode[cmd.tag](cmd)
-      // debug(cmd)
+  const goroutinePromises = []; // Array to hold promises for goroutines
+  // Iterate over the control stack
+  while (C.length > 0) {
+    const cmd = C.pop();
+    // console.log(JSON.stringify(cmd))
+    if (cmd.tag === 'goroutines') {
+      // console.log(JSON.stringify(cmd))
+
+      // If the command is a goroutine, execute it asynchronously
+      goroutinePromises.push(executeGoroutine(cmd));
     } else {
-      error("", "unknown command: " +
-        command_to_string(cmd))
+      // Otherwise, execute standard command
+      executeStandard(cmd);
     }
-    i++
   }
+
+  // Wait for all goroutines to finish executing in parallel
+  await Promise.all(goroutinePromises);
+
   if (i === step_limit) {
     error("step limit " + stringify(step_limit) + " exceeded")
   }
   if (S.length > 1 || S.length < 1) {
     error(S, 'internal error: stash must be singleton but is: ')
   }
+  
   return display(S[0])
 }
+
+// const executeGoroutine = async (cmd) => {
+//   return new Promise((resolve, reject) => {
+//     if (microcode.hasOwnProperty(cmd.tag)) {
+//       microcode[cmd.tag](cmd);
+//     }
+//     resolve();
+//   });
+// };
+
+const executeGoroutine = async (cmd) => {
+  return new Promise((resolve, reject) => {
+      if (isMainThread) {
+          const worker1 = new Worker('./project/goroutine_worker.js');
+          // const worker2 = new Worker('./project/goroutine_worker.js');
+
+          worker1.on('message', resolve);
+          worker1.on('error', reject);
+          // worker2.on('message', resolve); // Resolve both workers, assuming they're independent
+          // worker2.on('error', reject);
+
+          worker1.postMessage(cmd); // Assuming cmd.fun contains the function name
+          // worker2.postMessage(cmd); // Assuming cmd.fun contains the function name
+      } else {
+          // Perform goroutine logic here
+          // console.log(JSON.stringify(cmd))
+          // if (microcode.hasOwnProperty(cmd.tag)) {
+          //   microcode[cmd.tag](cmd);
+          // }
+          // For simplicity, we'll just echo the message back
+          parentPort.postMessage(`Goroutine executed with command: ${cmd}`);
+      }
+  });
+};
+
+// module.exports = executeGoroutine;
+
+const executeStandard = (cmd) => {
+  // Implement the execution of other commands here
+  
+  if (microcode.hasOwnProperty(cmd.tag)) {
+    microcode[cmd.tag](cmd);
+  } else {
+    error("", "unknown command: " + command_to_string(cmd));
+  }
+};
 
 try {
   execute(goCode);
