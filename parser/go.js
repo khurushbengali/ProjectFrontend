@@ -4,24 +4,12 @@ const { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure,
 const { Worker } = require('worker_threads');
 
 const goCode = `
-func get1(a int) int {
-  for a < 10 {
-    print(a * a)
-    a = a + 1
-  }
-}
-func get2(a int) int {
-  for a < 10 {
-    print(a + a)
-    a = a + 1
-  }
-}
 func gofunc(a int) int {
-  waitGroupAdd(2)
-  go get1(a)
-  go get1(a)
-  waitGroupWait()
-  get2(a)
+  if a > 10 {
+    print(a)
+  } else {
+    print(2)
+  }
 }
 gofunc(1)
 `;
@@ -300,14 +288,14 @@ const execute = async (program) => {
     i++
   }
 
-  // if (i === step_limit) {
-  //   error("step limit " + stringify(step_limit) + " exceeded")
-  // }
-  // if (S.length > 1 || S.length < 1) {
-  //   error(S, 'internal error: stash must be singleton but is: ')
-  // }
+  if (i === step_limit) {
+    error("step limit " + stringify(step_limit) + " exceeded")
+  }
+  if (S.length > 1 || S.length < 1) {
+    error(S, 'internal error: stash must be singleton but is: ')
+  }
   
-  // return display(S[0])
+  return display(S[0])
 }
 
 const executeCommand = async (cmd) => {

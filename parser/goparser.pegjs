@@ -132,14 +132,19 @@ assignment
     }
 
 conditional
-  = _ "if" _ pred:expression _ "{" _ cons:statement? _ "}" _ "else"? _ "{"? _ alt:statement? _ "}"? _ {
+  = _ "if" _ pred:expression _ "{" _ cons:statement? _ "}" alt:else? {
       return {
-        tag: "cond",
+        tag: "cond_stmt",
         pred: pred,
         cons: cons,
         alt: alt
       }
     }
+
+else
+  = _ "else" _ "{" _ alt:statement? _ "}" _ {
+    return alt
+  }
 
 forLoop
   = _ "for" _ pred:expression? _ "{" _ body:forBody? _ "}" _
@@ -182,8 +187,8 @@ return
 functionBody
   = statements:statement* {
       return {
-        tag: "seq",
-        stmts: statements
+        tag: "blk",
+        body: statements.length === 1 ? statements[0] : { tag: "seq", stmts: statements }
       };
     }
 
