@@ -132,7 +132,7 @@ assignment
     }
 
 conditional
-  = _ "if" _ pred:expression _ "{" _ cons:body? _ "}" alt:else? {
+  = _ "if" _ "("? pred:expression ")"? _ "{" _ cons:body? _ "}" alt:else? {
       return {
         tag: "cond_stmt",
         pred: pred,
