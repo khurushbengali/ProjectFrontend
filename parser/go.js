@@ -3,13 +3,56 @@ const { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure,
 // Import the Worker API
 const { Worker } = require('worker_threads');
 
-const goCode = `
-func gofunc(a int) int {
-  if a > 10 {
-    print(a)
-  } else {
-    print(2)
+const goCodeFor = `
+func gofunc(a int, b int) int {
+  for a < b {
+    print(a+b)
+    a = a + 1
   }
+}
+gofunc(1, 4)
+`;
+
+const goCodeRoutines = `
+func get1(a int) int {
+  for a < 10 {
+    print(a * a)
+    a = a + 1
+  }
+}
+func get2(a int) int {
+  for a < 10 {
+    print(a + a)
+    a = a + 1
+  }
+}
+func gofunc(a int) int {
+  go get1(a)
+  go get1(a)
+  get2(a)
+}
+gofunc(1)
+`;
+
+const goCodeRoutinesWaitGroup = `
+func get1(a int) int {
+  for a < 10 {
+    print(a * a)
+    a = a + 1
+  }
+}
+func get2(a int) int {
+  for a < 10 {
+    print(a + a)
+    a = a + 1
+  }
+}
+func gofunc(a int) int {
+  waitGroupAdd(2)
+  go get1(a)
+  go get1(a)
+  waitGroupWait()
+  get2(a)
 }
 gofunc(1)
 `;
@@ -329,7 +372,9 @@ const executeConcurrency = (cmd) => {
 };
 
 try {
-  execute(goCode);
+  execute(goCodeFor);
+  // execute(goCodeRoutines);
+  // execute(goCodeRoutinesWaitGroup);
 } catch (error) {
   console.error("Error parsing Go code:", error.message);
 }
