@@ -88,7 +88,7 @@ undefined
     }
 
 functionDeclaration
-  = _ "func" _ sym:identifier _ "(" _ prms:nameTypePairs? _ ")" _ returnType:type? _ "{" _ body:functionBody? _ "}" _ {
+  = _ "func" _ sym:identifier _ "(" _ prms:nameTypePairs? _ ")" _ returnType:type? _ "{" _ body:body? _ "}" _ {
       return {
         tag: "fun",
         sym: sym,
@@ -132,7 +132,7 @@ assignment
     }
 
 conditional
-  = _ "if" _ pred:expression _ "{" _ cons:statement? _ "}" alt:else? {
+  = _ "if" _ pred:expression _ "{" _ cons:body? _ "}" alt:else? {
       return {
         tag: "cond_stmt",
         pred: pred,
@@ -142,12 +142,12 @@ conditional
     }
 
 else
-  = _ "else" _ "{" _ alt:statement? _ "}" _ {
+  = _ "else" _ "{" _ alt:body? _ "}" _ {
     return alt
   }
 
 forLoop
-  = _ "for" _ pred:expression? _ "{" _ body:forBody? _ "}" _
+  = _ "for" _ pred:expression? _ "{" _ body:body? _ "}" _
     {
       return {
         tag: "for",
@@ -184,7 +184,7 @@ return
     };
   }
 
-functionBody
+body
   = statements:statement* {
       return {
         tag: "blk",
