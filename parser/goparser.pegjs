@@ -25,7 +25,7 @@ expression
     }
 
 operand
-  = unop / literal / nam / "(" _ expression _ ")"
+  = functionApplication / unop / literal / nam / "(" _ expression _ ")"
 
 statement
   = variableDeclaration / conditional / assignment / return / functionApplication / goroutine / forLoop 
@@ -92,7 +92,7 @@ functionDeclaration
       return {
         tag: "fun",
         sym: sym,
-        prms: prms,
+        prms: prms ? prms : [],
         body: body,
         returnType: returnType
       };
