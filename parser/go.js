@@ -3,6 +3,43 @@ const { push, peek, pair, head, tail, lookup, handle_sequence, scan, is_closure,
 // Import the Worker API
 const { Worker } = require('worker_threads');
 
+const goCodePrint = `
+func gofunc(a int, b int) int {
+  print(b)
+  print(a)
+}
+gofunc(1, 4)
+`;
+
+const goCodeVarDecl = `
+func gofunc(a int) int {
+  var b int = a + 1
+  print(b)
+}
+gofunc(1)
+`;
+
+const goCodeBinop = `
+func gofunc(a int, b int) int {
+  print(a+b)
+  print(a-b)
+  print(a*b)
+  print(a+b)
+}
+gofunc(1, 4)
+`;
+
+const goCodeIf = `
+func gofunc(a int, b int) int {
+  if a < b {
+    print(a)
+  } else {
+    print(b)
+  }
+}
+gofunc(1, 0)
+`;
+
 const goCodeFor = `
 func gofunc(a int, b int) int {
   for a < b {
@@ -11,6 +48,21 @@ func gofunc(a int, b int) int {
   }
 }
 gofunc(1, 4)
+`;
+
+const goCodeFor2 = `
+func gofunc(a int, b int, c int) int {
+  for a < 100 {
+    b = 0
+    for b < 100 {
+      c = c + a + b
+      b = b + 1
+    }
+    a = a + 1
+  }
+  print(c)
+}
+gofunc(0, 0, 0)
 `;
 
 const goCodeRoutines = `
@@ -372,7 +424,12 @@ const executeConcurrency = (cmd) => {
 };
 
 try {
-  execute(goCodeFor);
+  execute(goCodePrint);
+  // execute(goCodeVarDecl);
+  // execute(goCodeBinop);
+  // execute(goCodeIf);
+  // execute(goCodeFor);
+  // execute(goCodeFor2); // 990000
   // execute(goCodeRoutines);
   // execute(goCodeRoutinesWaitGroup);
 } catch (error) {
