@@ -440,9 +440,9 @@ const executeCommand = async (cmd) => {
 const executeConcurrency = (cmd) => {
   if (cmd.tag === 'goroutines') {
     return new Promise((resolve, reject) => {
-      const worker1 = new Worker('./parser/goroutine_worker.js', { workerData: { C: C, cmd: cmd } });
+      const worker1 = new Worker('./parser/goroutine_worker.js', { workerData: { cmd: cmd } });
       worker1.on('message', message => {
-        C = message
+        push(C, ...message)
         resolve()
       });
       worker1.on('error', reject);

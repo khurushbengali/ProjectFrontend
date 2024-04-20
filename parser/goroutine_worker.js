@@ -1,16 +1,11 @@
 const { parentPort, workerData } = require('worker_threads');
 
-const push = (array, ...items) => {
-  array.splice(array.length, 0, ...items)
-  return array
-}
-
 const execute = (data) => {
-  const { C, cmd } = data
-  push(C, { tag: 'goroutines_i', arity: cmd.args.length },
+  const { cmd } = data
+  const result = [{ tag: 'goroutines_i', arity: cmd.args.length },
     ...cmd.args,
-    cmd.fun)
-  return C
+    cmd.fun]
+  return result
 }
 
 parentPort.postMessage(execute(workerData));
