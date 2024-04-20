@@ -29,7 +29,18 @@ func gofunc(a int, b int) int {
 gofunc(1, 4)
 `;
 
-const goCodeIf = `
+const goCodeIfTrue = `
+func gofunc(a int, b int) int {
+  if a < b {
+    print(a)
+  } else {
+    print(b)
+  }
+}
+gofunc(1, 2)
+`;
+
+const goCodeIfFalse = `
 func gofunc(a int, b int) int {
   if a < b {
     print(a)
@@ -38,6 +49,28 @@ func gofunc(a int, b int) int {
   }
 }
 gofunc(1, 0)
+`;
+
+const goCodeIfNested = `
+func gofunc(a int, b int, c int) int {
+  if a > b {
+    if a > c {
+      print(a)
+    }
+  }
+}
+gofunc(2,1,1)
+`;
+
+const goCodeFactorial = `
+func factorial(n int) int {
+  if n < 2 {
+    return 1
+  } else {
+    return n * factorial(n - 1)
+  }
+}
+factorial(5)
 `;
 
 const goCodeFor = `
@@ -50,7 +83,7 @@ func gofunc(a int, b int) int {
 gofunc(1, 4)
 `;
 
-const goCodeFor2 = `
+const goCodeForNested = `
 func gofunc(a int, b int, c int) int {
   for a < 100 {
     b = 0
@@ -427,9 +460,12 @@ try {
   execute(goCodePrint);
   // execute(goCodeVarDecl);
   // execute(goCodeBinop);
-  // execute(goCodeIf);
+  // execute(goCodeIfTrue);
+  // execute(goCodeIfFalse);
+  // execute(goCodeIfNested);
   // execute(goCodeFor);
-  // execute(goCodeFor2); // 990000
+  // execute(goCodeForNested); // 990000
+  // execute(goCodeFactorial)
   // execute(goCodeRoutines);
   // execute(goCodeRoutinesWaitGroup);
 } catch (error) {
